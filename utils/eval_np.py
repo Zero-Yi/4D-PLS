@@ -334,12 +334,24 @@ class Panoptic4DEval:
       unique_gt, counts_gt = np.unique(y_inst_in_cl[y_inst_in_cl > 0], return_counts=True)
       self.update_dict_stat(cl_gts, unique_gt[counts_gt>self.min_points], counts_gt[counts_gt>self.min_points])
 
+      ### additionally here should be a mask for the filtered gt points that have no more than self.min points
+      ### because we want to actually ignore them in the metrics calculation
+      ### thus we should also mask out the corresponding predictions
+      ### otherwise the predictions on the ignored points would actually affect the metrics by causing a mismatch between the gt_size and pred_size, which is not desired
+      mask_gt_min_point = np.zeros_like(y_inst_in_cl)
+      for valid_id in unique_gt[counts_gt <= self.min_points]:
+          mask_gt_min_point = np.logical_or(
+              mask_gt_min_point, y_inst_in_cl == valid_id
+          )
+
       valid_combos_min_point = np.zeros_like(y_inst_in_cl)  # instances which have more than self.min points
       for valid_id in unique_gt[counts_gt > self.min_points]:
         valid_combos_min_point = np.logical_or(valid_combos_min_point, y_inst_in_cl == valid_id)
 
       y_inst_in_cl = y_inst_in_cl * valid_combos_min_point
       # generate the areas for each unique instance prediction (i.e., set1)
+      ### here we should mask out the predictions that correspond to the ignored gt instances
+      x_inst_in_cl = x_inst_in_cl * np.logical_not(mask_gt_min_point)
       unique_pred, counts_pred = np.unique(x_inst_in_cl[x_inst_in_cl > 0], return_counts=True)
 
       # is there better way to do this?
